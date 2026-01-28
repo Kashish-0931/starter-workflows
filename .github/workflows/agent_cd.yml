@@ -1,4 +1,4 @@
-name: CD Test with AI Agent
+name: Test CD AI Agent with Fake Deployment Error
 
 on:
   push:
@@ -6,31 +6,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  cd-test:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      # ---------------- CD FAILURE SIMULATION ----------------
-      - name: Simulate CD failure (Docker build)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
         run: |
-          cat <<EOF > Dockerfile
-          FROM python:3.12
-          RUN pip install definitely_not_a_real_package
-          CMD ["python", "--version"]
-          EOF
+          python -m pip install --upgrade pip
 
-          docker build . 2> error.log || true
-
-      # ---------------- SEND ERROR TO AI AGENT ----------------
-      - name: Send CD error to AI Agent
-        env:
-          AGENT_URL: https://<YOUR-AGENT-URL>/ci
+      - name: Run fake deployment
         run: |
-          ERROR_CONTENT=$(jq -Rs '{log: .}' < error.log)
+          python deploy.py || echo "Error caught, sending to AI CD agent"
 
-          curl -s -X POST "$AGENT_URL" \
+      - name: Send deployment error to AI agent
+        run: |
+          RESPONSE=$(curl -s -X POST "https://universal-ci-fix-agent-2.onrender.com/cd" \
             -H "Content-Type: application/json" \
-            -d "$ERROR_CONTENT"
+            -d '{"log":"'"$(python deploy.py 2>&1)"'"}')
+          echo "=== AI CD Agent Response ==="
+          echo "$RESPONSE"
+
+      - name: Simulate Deployment Success
+        if: success()
+        run: |
+          echo " Deployment simulated — everything passed!"
