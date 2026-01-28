@@ -1,0 +1,36 @@
+name: CD Test with AI Agent
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  cd-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---------------- CD FAILURE SIMULATION ----------------
+      - name: Simulate CD failure (Docker build)
+        run: |
+          cat <<EOF > Dockerfile
+          FROM python:3.12
+          RUN pip install definitely_not_a_real_package
+          CMD ["python", "--version"]
+          EOF
+
+          docker build . 2> error.log || true
+
+      # ---------------- SEND ERROR TO AI AGENT ----------------
+      - name: Send CD error to AI Agent
+        env:
+          AGENT_URL: https://<YOUR-AGENT-URL>/ci
+        run: |
+          ERROR_CONTENT=$(jq -Rs '{log: .}' < error.log)
+
+          curl -s -X POST "$AGENT_URL" \
+            -H "Content-Type: application/json" \
+            -d "$ERROR_CONTENT"
