@@ -1,4 +1,4 @@
-name: Test CD AI Agent with Fake Deployment Error
+name: CD AI Agent with Fix Suggestion
 
 on:
   push:
@@ -24,17 +24,17 @@ jobs:
 
       - name: Run fake deployment
         run: |
-          python deploy.py || echo "Error caught, sending to AI CD agent"
+          python deploy.py || echo "Deployment error detected"
 
-      - name: Send deployment error to AI agent
+      - name: Send error log to AI agent and get fix suggestion
+        id: ai_fix
         run: |
+          LOG_OUTPUT=$(python deploy.py 2>&1 || true)
           RESPONSE=$(curl -s -X POST "https://universal-ci-fix-agent-2.onrender.com/cd" \
             -H "Content-Type: application/json" \
-            -d '{"log":"'"$(python deploy.py 2>&1)"'"}')
-          echo "=== AI CD Agent Response ==="
+            -d '{"log":"'"$LOG_OUTPUT"'"}')
+          echo "AI_SUGGESTED_FIX=$RESPONSE" >> $GITHUB_ENV
+          echo "=== AI Agent Fix Suggestion ==="
           echo "$RESPONSE"
 
-      - name: Simulate Deployment Success
-        if: success()
-        run: |
-          echo " Deployment simulated — everything passed!"
+      
