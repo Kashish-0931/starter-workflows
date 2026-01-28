@@ -1,0 +1,27 @@
+name: CI Test with AI Agent
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run failing script
+        id: run
+        run: |
+          python error.py 2> error.log || true
+
+      - name: Send error to AI Agent
+        run: |
+          ERROR_CONTENT=$(jq -Rs '{log: .}' < error.log)
+
+          curl -X POST 
+             https://universal-ci-fix-agent-2.onrender.com/ci \
+            -H "Content-Type: application/json" \
+            -d "$ERROR_CONTENT"
