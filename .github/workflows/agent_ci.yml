@@ -3,6 +3,7 @@ name: CI Test with AI Agent
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -12,17 +13,51 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ------------------ INTENTIONAL FAILURE ------------------
       - name: Run failing script
         run: |
           python error.py 2> error.log || true
 
+      # ------------------ SEND ERROR TO AI AGENT ------------------
       - name: Send error to AI Agent
         env:
-          AGENT_URL: "https://universal-ci-fix-agent-2.onrender.com/ci"
+          AGENT_URL: https://universal-ci-fix-agent-2.onrender.com/ci
         run: |
+          echo "==== RAW ERROR LOG ===="
+          cat error.log
+
           ERROR_CONTENT=$(jq -Rs '{log: .}' < error.log)
 
-          curl -s -X POST "$AGENT_URL" \
+          RESPONSE=$(curl -s -X POST "$AGENT_URL" \
             -H "Content-Type: application/json" \
-            -d "$ERROR_CONTENT"
+            -d "$ERROR_CONTENT")
+
+          echo ""
+          echo "=============================="
+          echo " AI AGENT FULL RESPONSE"
+          echo "=============================="
+          echo "$RESPONSE" | jq .
+
+          echo ""
+          echo "=============================="
+          echo " SUGGESTED FIX"
+          echo "=============================="
+          echo "$RESPONSE" | jq -r '.suggested_fix'
+
+          echo ""
+          echo "=============================="
+          echo " FILE TO CHANGE"
+          echo "=============================="
+          echo "$RESPONSE" | jq -r '.file_path // .files_changed[0]'
+
+          echo ""
+          echo "=============================="
+          echo " CONFIDENCE"
+          echo "=============================="
+          echo "$RESPONSE" | jq -r '.confidence'
 
