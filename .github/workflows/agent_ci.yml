@@ -21,7 +21,6 @@ jobs:
         run: |
           ERROR_CONTENT=$(jq -Rs '{log: .}' < error.log)
 
-          curl -X POST 
-             https://universal-ci-fix-agent-2.onrender.com/ci \
+          curl -X POST " https://universal-ci-fix-agent-2.onrender.com/ci "\
             -H "Content-Type: application/json" \
             -d "$ERROR_CONTENT"
